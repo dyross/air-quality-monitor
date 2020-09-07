@@ -107,6 +107,7 @@ async function run() {
   }
 
   if (message) {
+    console.log(`Sending message "${message}" to configured numbers`);
     toNumbers.forEach((toNumber) =>
       client.messages
         .create({
@@ -116,6 +117,8 @@ async function run() {
         })
         .then((message) => console.log(message.sid))
     );
+  } else {
+    console.log("Air quality not interesting enough to send message!");
   }
 }
 
