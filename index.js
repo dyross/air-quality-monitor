@@ -67,11 +67,16 @@ async function callThinkspeak(id, key, start, n) {
       );
 
       var sum = 0;
+      var count = 0;
       for (var i = 0; i < values.length; i++) {
-        sum += pm25ToAqi(values[i]);
+        const value = pm25ToAqi(values[i]);
+        if (value) {
+          sum += value;
+          count += 1;
+        }
       }
 
-      const result = (sum * 1.0) / values.length;
+      const result = (sum * 1.0) / count;
       console.log(`Result is ${result}`);
       return result;
     });
