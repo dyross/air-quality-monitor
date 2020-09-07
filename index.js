@@ -43,6 +43,7 @@ function pm25ToAqi(concentration) {
 }
 
 async function getApiInfo(id) {
+  console.log(`Running for Purple Air ID ${id}`);
   return fetch(`https://www.purpleair.com/json?show=${id}`)
     .then((response) => response.json())
     .then((data) => {
@@ -70,7 +71,9 @@ async function callThinkspeak(id, key, start, n) {
         sum += pm25ToAqi(values[i]);
       }
 
-      return (sum * 1.0) / values.length;
+      const result = (sum * 1.0) / values.length;
+      console.log(`Result is ${result}`);
+      return result;
     });
 }
 
@@ -83,13 +86,18 @@ async function getAqi(id) {
 
 async function run() {
   var accum = 0;
+  var count = 0;
   for (var i = 0; i < ids.length; i++) {
-    accum += await getAqi(ids[i]);
+    const aqi = await getAqi(ids[i]);
+    if (aqi) {
+      accum += aqi;
+      count += 1;
+    }
   }
 
-  const result = Math.ceil(accum / ids.length);
+  const result = Math.ceil(accum / count);
 
-  console.log(`Result is ${result}`);
+  console.log(`Averaged result is ${result}`);
 
   var message;
   if (result <= goodAirThreshold) {
