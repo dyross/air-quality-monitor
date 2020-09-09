@@ -1,17 +1,14 @@
 const express = require("express");
 const app = express();
-const port = 3000;
+const path = require("path");
 
 const checkAir = require("./checkAir");
 
 const dotenv = require("dotenv");
 dotenv.config();
 
-// const redisClient = require("redis").createClient(process.env.REDIS_URL);
 const Redis = require("ioredis");
 const redisClient = new Redis(process.env.REDIS_URL);
-
-// checkAir.run(redisClient).then(() => redisClient.disconnect());
 
 app.get("/", (req, res) => {
   checkAir
@@ -27,6 +24,8 @@ app.get("/run", (req, res) => {
     .catch((err) => res.send(`Error is ${err}`));
 });
 
-app.listen(port, () => {
-  console.log(`App listening at http://localhost:${port}`);
-});
+const PORT = process.env.PORT || 5000;
+
+express()
+  .use(express.static(path.join(__dirname, "public")))
+  .listen(PORT, () => console.log(`Listening on ${PORT}`));
