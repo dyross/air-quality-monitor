@@ -14,8 +14,9 @@ const shouldSendText = JSON.parse(process.env.SHOULD_SEND_TEXT || "false");
 
 const aqiKey = "current_aqi";
 
-const goodAirThreshold = parseFloat(process.env.GOOD_AIR_THRESHOLD);
-const badAirThreshold = parseFloat(process.env.BAD_AIR_THRESHOLD);
+const goodAirThreshold = parseFloat(process.env.GOOD_AIR_THRESHOLD || 50);
+const badAirThreshold = parseFloat(process.env.BAD_AIR_THRESHOLD || 100);
+const minAlertDelta = parseFloat(process.env.MIN_ALERT_DELTA || 20);
 
 function linearInterpolate(aqiHigh, aqiLow, concHigh, concLow, concentration) {
   const conc = parseFloat(concentration);
@@ -95,7 +96,14 @@ async function getAqi(id) {
 }
 
 async function getCurrentState(redisClient) {
-  return await redisClient.get(aqiKey);
+  const result = await redisClient.get(aqiKey);
+  console.log(`Result was ${result}`);
+  try {
+    return JSON.parse(result);
+  } catch (error) {
+    console.error(error);
+    return;
+  }
 }
 
 async function run(redisClient) {
@@ -120,11 +128,14 @@ async function run(redisClient) {
     status = "bad";
   }
 
-  const previous = await getCurrentState(redisClient);
-  await redisClient.set(aqiKey, status);
+  const previousState = await getCurrentState(redisClient);
+  const currentState = { state: status, aqi: result };
+  await redisClient.set(aqiKey, JSON.stringify(currentState));
 
   var message;
-  if (previous != status) {
+  if (!previousState) {
+    message = `Air quality is ${status}, AQI is now ${result}`;
+  } else if (previousState.state != status) {
     console.log(
       `Status change. Previous was ${previous}, current is ${status}`
     );
@@ -132,6 +143,8 @@ async function run(redisClient) {
       status === "good" || (status === "ok" && previous === "bad");
     const airQualityGot = gotBetter ? "better" : "worse";
     message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was ${previous} but is now ${status}.`;
+  } else if (Math.abs(previousState.aqi - result) >= minAlertDelta) {
+    message = `Air quality changed by ${minAlertDelta} or more! AQI is now ${result}, was ${previousState.aqi}}`;
   } else {
     console.log(`Status is still ${status}`);
   }
@@ -139,7 +152,6 @@ async function run(redisClient) {
   if (message) {
     console.log(`Sending message "${message}" to configured numbers`);
     if (shouldSendText) {
-      // toNumbers.forEach((toNumber) => {
       for (var i = 0; i < toNumbers.length; i++) {
         await client.messages
           .create({
@@ -157,7 +169,7 @@ async function run(redisClient) {
 
   console.log("Done with check!");
 
-  return status;
+  return currentState;
 }
 
 exports.run = run;

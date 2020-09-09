@@ -13,14 +13,17 @@ const redisClient = new Redis(process.env.REDIS_URL);
 app.get("/", (req, res) => {
   checkAir
     .getCurrentState(redisClient)
-    .then((result) => res.send(`Current state is: ${result}`))
-    .catch((err) => res.send(`Error is ${err}`));
+    .then((result) => res.send(`Current state is: ${JSON.stringify(result)}`))
+    .catch((err) => {
+      console.error(err);
+      res.send(`Error is ${err}`);
+    });
 });
 
 app.get("/run", (req, res) => {
   checkAir
     .run(redisClient)
-    .then((result) => res.send(`Result is: ${result}`))
+    .then((result) => res.send(`Result is: ${JSON.stringify(result)}`))
     .catch((err) => res.send(`Error is ${err}`));
 });
 
