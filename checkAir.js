@@ -136,19 +136,23 @@ async function run(redisClient) {
   if (message) {
     console.log(`Sending message "${message}" to configured numbers`);
     if (shouldSendText) {
-      toNumbers.forEach((toNumber) =>
-        client.messages
+      // toNumbers.forEach((toNumber) => {
+      for (var i = 0; i < toNumbers.length; i++) {
+        await client.messages
           .create({
-            to: toNumber,
+            to: toNumbers[i],
             from: fromNumber,
             body: message,
           })
-          .then((message) => console.log(message.sid))
-      );
+          .then((message) => console.log(`Text send result ${message.sid}`))
+          .catch((err) => console.log(`Error sending text: ${err}`));
+      }
     }
   } else {
     console.log("Air quality not interesting enough to send message!");
   }
+
+  console.log("Done with check!");
 
   return status;
 }
