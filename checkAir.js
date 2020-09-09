@@ -89,9 +89,15 @@ async function callThinkspeak(id, key, start, n) {
 
 async function getAqi(id) {
   const api_info = await getApiInfo(id);
-  const today = new Date().toISOString().slice(0, 10);
+  const day = new Date();
+  day.setDate(day.getDate() - 1);
+  const yesterday = day.toISOString().slice(0, 10);
 
-  return callThinkspeak(api_info.id, api_info.key, today, 3);
+  return callThinkspeak(api_info.id, api_info.key, yesterday, 3);
+}
+
+async function getCurrentState(redisClient) {
+  return await redisClient.get(aqiKey);
 }
 
 async function run(redisClient) {
@@ -116,7 +122,7 @@ async function run(redisClient) {
     status = "bad";
   }
 
-  const previous = await redisClient.get(aqiKey);
+  const previous = await getCurrentState(redisClient);
   await redisClient.set(aqiKey, status);
 
   var message;
@@ -150,5 +156,4 @@ async function run(redisClient) {
 }
 
 exports.run = run;
-
-// redisClient.quit();
+exports.getCurrentState = getCurrentState;
