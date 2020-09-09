@@ -128,7 +128,10 @@ async function run(redisClient) {
     console.log(
       `Status change. Previous was ${previous}, current is ${status}`
     );
-    message = `Status change! Was ${previous} but is now ${status}. AQI is ${result}`;
+    const gotBetter =
+      status === "good" || (status === "ok" && previous === "bad");
+    const airQualityGot = gotBetter ? "better" : "worse";
+    message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was ${previous} but is now ${status}.`;
   } else {
     console.log(`Status is still ${status}`);
   }
