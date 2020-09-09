@@ -26,6 +26,6 @@ app.get("/run", (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-express()
+app
   .use(express.static(path.join(__dirname, "public")))
   .listen(PORT, () => console.log(`Listening on ${PORT}`));
