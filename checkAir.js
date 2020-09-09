@@ -10,10 +10,8 @@ const client = require("twilio")(accountSid, authToken);
 const ids = process.env.PURPLE_AIR_IDS.split(" ");
 const toNumbers = process.env.TO_NUMBERS.split(" ");
 const fromNumber = process.env.FROM_NUMBER;
-const shouldSendText = JSON.parse(process.env.SHOULD_SEND_TEXT);
+const shouldSendText = JSON.parse(process.env.SHOULD_SEND_TEXT || "false");
 
-// const { promisfy, waitFor } = require("promisify");
-const util = require("util");
 const aqiKey = "current_aqi";
 
 const goodAirThreshold = parseFloat(process.env.GOOD_AIR_THRESHOLD);
