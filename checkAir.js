@@ -142,7 +142,7 @@ async function run(redisClient) {
     const gotBetter =
       status === "good" || (status === "ok" && previous === "bad");
     const airQualityGot = gotBetter ? "better" : "worse";
-    message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was ${previous} but is now ${status}.`;
+    message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was ${previousState.status} but is now ${status}.`;
   } else if (Math.abs(previousState.aqi - result) >= minAlertDelta) {
     message = `Air quality changed by ${minAlertDelta} or more! AQI is now ${result}, was ${previousState.aqi}}`;
   } else {
