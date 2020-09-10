@@ -7,12 +7,13 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const client = require("twilio")(accountSid, authToken);
 
-const ids = process.env.PURPLE_AIR_IDS.split(" ");
+const purpleAirIds = process.env.PURPLE_AIR_IDS.split(" ");
 const toNumbers = process.env.TO_NUMBERS.split(" ");
 const fromNumber = process.env.FROM_NUMBER;
 const shouldSendText = JSON.parse(process.env.SHOULD_SEND_TEXT || "false");
 
 const aqiKey = "current_aqi";
+const previousMessageKey = "previous_message";
 
 const goodAirThreshold = parseFloat(process.env.GOOD_AIR_THRESHOLD || 50);
 const badAirThreshold = parseFloat(process.env.BAD_AIR_THRESHOLD || 100);
@@ -66,6 +67,9 @@ async function callThinkspeak(id, key, start, n) {
   )
     .then((response) => response.json())
     .then((data) => {
+      if (data.feeds.length === 0) {
+        return undefined;
+      }
       const values = [...Array(n).keys()].map(
         (i) => data.feeds[data.feeds.length - 1 - i].field8
       );
@@ -95,9 +99,8 @@ async function getAqi(id) {
   return callThinkspeak(api_info.id, api_info.key, yesterday, 3);
 }
 
-async function getCurrentState(redisClient) {
-  const result = await redisClient.get(aqiKey);
-  console.log(`Result was ${result}`);
+async function getFromRedis(redisClient, key) {
+  const result = await redisClient.get(key);
   try {
     return JSON.parse(result);
   } catch (error) {
@@ -106,11 +109,19 @@ async function getCurrentState(redisClient) {
   }
 }
 
+async function getCurrentState(redisClient) {
+  return await getFromRedis(redisClient, aqiKey);
+}
+
+async function getPreviousMessage(redisClient) {
+  return await getFromRedis(redisClient, previousMessageKey);
+}
+
 async function run(redisClient) {
   var accum = 0;
   var count = 0;
-  for (var i = 0; i < ids.length; i++) {
-    const aqi = await getAqi(ids[i]);
+  for (var i = 0; i < purpleAirIds.length; i++) {
+    const aqi = await getAqi(purpleAirIds[i]);
     if (aqi) {
       accum += aqi;
       count += 1;
@@ -129,8 +140,10 @@ async function run(redisClient) {
   }
 
   const previousState = await getCurrentState(redisClient);
-  const currentState = { state: status, aqi: result };
-  await redisClient.set(aqiKey, JSON.stringify(currentState));
+  const previousMessage = await getPreviousMessage(redisClient);
+
+  console.log(`Previous state is ${JSON.stringify(previousState)}`);
+  console.log(`Previous message is ${JSON.stringify(previousMessage)}`);
 
   var message;
   if (!previousState) {
@@ -143,10 +156,20 @@ async function run(redisClient) {
       status === "good" || (status === "ok" && previous === "bad");
     const airQualityGot = gotBetter ? "better" : "worse";
     message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was ${previousState.status} but is now ${status}.`;
-  } else if (Math.abs(previousState.aqi - result) >= minAlertDelta) {
-    message = `Air quality changed by ${minAlertDelta} or more! AQI is now ${result}, was ${previousState.aqi}}`;
   } else {
     console.log(`Status is still ${status}`);
+  }
+
+  if (!message) {
+    if (!previousMessage) {
+      // Send a message for first time.
+      message = `Air quality is ${status}, AQI is now ${result}`;
+    } else {
+      const previouslySentAqi = previousMessage.aqi;
+      if (Math.abs(previouslySentAqi - result) >= minAlertDelta) {
+        message = `Air quality changed by ${minAlertDelta} or more since last message! AQI is now ${result}, was ${previousState.aqi}}`;
+      }
+    }
   }
 
   if (message) {
@@ -165,6 +188,18 @@ async function run(redisClient) {
     }
   } else {
     console.log("Air quality not interesting enough to send message!");
+  }
+
+  const currentState = { state: status, aqi: result };
+  await redisClient.set(aqiKey, JSON.stringify(currentState));
+
+  if (message) {
+    const currentMessage = {
+      message: message,
+      aqi: result,
+      timestamp: Date.now(),
+    };
+    await redisClient.set(previousMessageKey, JSON.stringify(currentMessage));
   }
 
   console.log("Done with check!");
