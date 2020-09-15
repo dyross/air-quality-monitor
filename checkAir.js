@@ -149,13 +149,14 @@ async function run(redisClient) {
   if (!previousState) {
     message = `Air quality is ${status}, AQI is now ${result}`;
   } else if (previousState.state != status) {
+    const previous = previousState.state;
     console.log(
       `Status change. Previous was ${previous}, current is ${status}`
     );
     const gotBetter =
       status === "good" || (status === "ok" && previous === "bad");
     const airQualityGot = gotBetter ? "better" : "worse";
-    message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was "${previousState.status}" but is now "${status}".`;
+    message = `Air quality got ${airQualityGot}! AQI is now ${result}. It was "${previousState.state}" but is now "${status}".`;
   } else {
     console.log(`Status is still ${status}`);
   }
